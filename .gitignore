@@ -1,0 +1,28 @@
+# Credenciais — NUNCA commitar
+private/config.php
+collector/config.php
+
+# Arquivos de estado gerados em runtime
+collector/*.json
+collector/error.log
+public_html/*.json
+
+# Dados de runtime do dashboard (gerados pelo coletor)
+private/current.json
+private/queue_details.json
+private/queue_actions.json
+private/accounts_map.json
+private/alert_state.json
+private/alert_config.json
+private/alert_silences.json
+private/kill_requests.json
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editores
+*.swp
+*.swo
+.idea/
+.vscode/
