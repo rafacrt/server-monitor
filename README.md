@@ -11,8 +11,9 @@ Dashboard de monitoramento de servidor Linux em tempo real. Desenvolvido para se
 - **E-mail** — estatísticas diárias por domínio (recebidos, enviados, bounces, rejeitados), fila Exim, motivos de rejeição, IPs atacantes
 - **Uptime de sites** — monitoramento HTTP de todos os domínios cadastrados, incidentes e tempo de resposta
 - **Segurança** — bans/unbans do Fail2ban e falhas SSH do auth.log
-- **Alertas por e-mail** — notificações via [Resend](https://resend.com) para CPU, RAM, disco, load, serviços, sites fora e atividade suspeita de e-mail
+- **Alertas via Telegram e Slack** — notificações para CPU, RAM, disco, load, serviços, sites fora e atividade suspeita de e-mail
 - **Fila Exim** — listagem de mensagens em fila com ações de release/delete
+- **Info do servidor** — hardware, SO, kernel, versões de software (Nginx, Apache, MariaDB, Exim, Dovecot, HestiaCP) e PHP-FPM por versão
 
 ## Requisitos
 
@@ -24,7 +25,8 @@ Dashboard de monitoramento de servidor Linux em tempo real. Desenvolvido para se
 | Servidor web | Nginx ou Apache |
 | MTA | Exim4 (para coleta de e-mail) |
 | Fail2ban | qualquer (para coleta de segurança) |
-| API de e-mail | [Resend](https://resend.com) (para alertas) |
+| Telegram Bot | para alertas (obtenha via [@BotFather](https://t.me/BotFather)) |
+| Slack Webhook | para alertas (Incoming Webhook do seu workspace) |
 
 O PHP do **coletor** precisa rodar como **root** (via cron) para ler `/proc`, `/var/log` e o spool do Exim.
 
@@ -34,6 +36,7 @@ O PHP do **coletor** precisa rodar como **root** (via cron) para ler `/proc`, `/
 server-monitor/
 ├── public_html/          # Raiz do site (DocumentRoot)
 │   ├── setup.php         # Configuração inicial (acesse primeiro)
+│   ├── _bootstrap.php    # Carrega config e redireciona para setup se necessário
 │   ├── index.php         # Dashboard principal
 │   ├── api.php           # Endpoint JSON para os gráficos
 │   ├── email.php         # Painel de e-mail
@@ -43,13 +46,14 @@ server-monitor/
 │   ├── queue.php         # Fila Exim
 │   ├── uptime.php        # Uptime dos sites
 │   ├── security.php      # Segurança / Fail2ban
-│   └── alerts-config.php # Configuração de alertas
+│   ├── alerts-config.php # Configuração de alertas e silenciamentos
+│   └── server-info.php   # Hardware, SO, kernel e versões de software
 ├── private/              # Fora do DocumentRoot — protegido por .htaccess
 │   ├── config.sample.php # Modelo de configuração
 │   └── .htaccess         # Bloqueia acesso direto
 ├── collector/            # Scripts executados como root via cron
 │   ├── collect.php       # Coleta todas as métricas
-│   ├── alerts.php        # Disparo de alertas por e-mail
+│   ├── alerts.php        # Disparo de alertas via Telegram e Slack
 │   └── config.sample.php # Modelo de configuração do coletor
 └── sql/
     └── schema.sql        # Schema completo do banco de dados
@@ -60,7 +64,7 @@ server-monitor/
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/server-monitor.git /home/usuario/web/monitor.seudominio.com
+git clone https://github.com/rafacrt/server-monitor.git /home/usuario/web/monitor.seudominio.com
 ```
 
 ### 2. Configure o servidor web
@@ -114,7 +118,18 @@ cp collector/config.sample.php collector/config.php
 nano collector/config.php
 ```
 
-Preencha `PRIVATE_DIR` com o caminho absoluto do diretório `private/` e `WEB_USER` com o usuário do servidor web (ex: `usuario` no HestiaCP).
+Preencha as constantes:
+
+| Constante | Descrição |
+|---|---|
+| `DB_HOST/DB_NAME/DB_USER/DB_PASS` | Conexão com o banco de dados |
+| `SITE_NAME` | Nome exibido no cabeçalho e nos alertas |
+| `MONITOR_URL` | URL pública do dashboard (usado nos botões dos alertas) |
+| `TELEGRAM_TOKEN` | Token do bot obtido via [@BotFather](https://t.me/BotFather) |
+| `TELEGRAM_CHAT_ID` | ID do chat ou grupo que receberá as notificações |
+| `SLACK_WEBHOOK` | URL do Incoming Webhook do seu workspace Slack |
+| `PRIVATE_DIR` | Caminho absoluto do diretório `private/` |
+| `WEB_USER` | Usuário do sistema que owna os arquivos web (ex: `usuario` no HestiaCP) |
 
 ### 6. Configure os crons (como root)
 
@@ -142,12 +157,18 @@ chmod 640 private/config.php
 
 Acesse `https://monitor.seudominio.com/alerts-config.php` para ajustar:
 
-- **Destinatários** de e-mail
 - **Limites** de CPU, RAM, Disco, Load e fila
-- **Cooldowns** (tempo mínimo entre alertas repetidos)
-- **Silenciamentos** por alerta específico
+- **Cooldowns** (tempo mínimo entre alertas repetidos do mesmo tipo)
+- **Silenciamentos** por alerta específico, com duração configurável ou permanente
 
-Os alertas são enviados via [Resend](https://resend.com). Crie uma conta, obtenha a API Key e configure em `RESEND_KEY` no `config.php`.
+Os alertas são enviados simultaneamente para **Telegram** e **Slack**. Configure as credenciais no `collector/config.php`.
+
+## Configurando o bot do Telegram
+
+1. Crie um bot via [@BotFather](https://t.me/BotFather) e copie o token
+2. Adicione o bot ao grupo ou chat desejado
+3. Obtenha o `chat_id`: acesse `https://api.telegram.org/bot<TOKEN>/getUpdates` após enviar uma mensagem ao bot
+4. Preencha `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID` no `config.php`
 
 ## Segurança
 
