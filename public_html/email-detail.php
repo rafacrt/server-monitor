@@ -92,7 +92,11 @@ code{background:#334155;padding:2px 6px;border-radius:4px;font-size:.78rem;word-
     <a href="index.php"      class="nav-pill">Sistema</a>
     <a href="cpu-detail.php" class="nav-pill">CPU por Conta</a>
     <a href="email.php"      class="nav-pill active">E-mail</a>
-    <a href="queue.php"      class="nav-pill">Fila</a>
+    <a href="queue.php"       class="nav-pill">Fila</a>
+    <a href="uptime.php"      class="nav-pill">Uptime</a>
+    <a href="security.php"    class="nav-pill">Segurança</a>
+    <a href="alerts-config.php" class="nav-pill">Alertas</a>
+    <a href="server-info.php" class="nav-pill">Servidor</a>
   </div>
 
 <?php if (!$hasStats): ?>

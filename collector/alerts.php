@@ -9,14 +9,12 @@ function cfg(): array {
     static $c = null;
     if ($c) return $c;
     $defaults = [
-        'recipients' => [ALERT_TO],
         'thresholds' => ['cpu'=>85,'ram'=>90,'disk'=>88,'queue'=>100,'load'=>14,'susp_sends'=>30],
         'cooldowns'  => ['cpu'=>60,'ram'=>60,'disk'=>120,'service'=>30,'site'=>30,'queue'=>60,'suspicious'=>240,'load'=>60],
     ];
     if (!file_exists(CONFIG_FILE)) return $c = $defaults;
     $file = json_decode(file_get_contents(CONFIG_FILE), true) ?: [];
     $c = [
-        'recipients' => $file['recipients'] ?? $defaults['recipients'],
         'thresholds' => array_merge($defaults['thresholds'], $file['thresholds'] ?? []),
         'cooldowns'  => array_merge($defaults['cooldowns'],  $file['cooldowns']  ?? []),
     ];
@@ -56,47 +54,74 @@ function isSilenced(string $key): bool {
     return false;
 }
 
-function sendAlert(array $alerts): bool {
-    $rows = '';
-    foreach ($alerts as $a) {
-        $icon  = ($a['sev'] ?? '') === 'critical' ? '🔴' : '🟡';
-        $rows .= "<tr><td style='padding:14px 20px;border-bottom:1px solid #1e293b'>
-            <div style='font-size:15px;font-weight:600;color:#f1f5f9'>{$icon} {$a['title']}</div>
-            <div style='font-size:13px;color:#94a3b8;margin-top:4px'>{$a['detail']}</div>
-        </td></tr>";
-    }
-    $count = count($alerts);
-    $ts    = date('d/m/Y H:i');
-    $url   = MONITOR_URL;
-    $site  = SITE_NAME;
-    $html  = "<!DOCTYPE html><html><body style='background:#0f172a;margin:0;padding:24px;font-family:-apple-system,BlinkMacSystemFont,sans-serif'>
-<div style='max-width:580px;margin:0 auto;background:#1e293b;border-radius:12px;overflow:hidden;border:1px solid #334155'>
-  <div style='background:#0f172a;padding:20px 24px;border-bottom:1px solid #334155'>
-    <div style='font-size:18px;font-weight:700;color:#f1f5f9'>⚠ {$count} alerta(s) — {$site}</div>
-    <div style='font-size:12px;color:#64748b;margin-top:4px'>{$ts}</div>
-  </div>
-  <table width='100%' cellpadding='0' cellspacing='0'>{$rows}</table>
-  <div style='padding:16px 20px;border-top:1px solid #334155;display:flex;justify-content:space-between;align-items:center'>
-    <a href='{$url}/alerts-config.php' style='color:#64748b;font-size:12px;text-decoration:none'>Configurar alertas →</a>
-    <a href='{$url}' style='color:#38bdf8;font-size:13px;text-decoration:none'>Ver Dashboard →</a>
-  </div>
-</div></body></html>";
-
-    $to      = cfg()['recipients'];
-    $payload = json_encode(['from'=>ALERT_FROM,'to'=>$to,'subject'=>"⚠ [{$count}] Alerta {$site} — {$ts}",'html'=>$html]);
-    $ch      = curl_init('https://api.resend.com/emails');
+function curlPost(string $url, string $payload, array $headers = [], int $timeout = 15): array {
+    $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true,
         CURLOPT_POSTFIELDS     => $payload,
-        CURLOPT_HTTPHEADER     => ['Authorization: Bearer '.RESEND_KEY,'Content-Type: application/json'],
-        CURLOPT_TIMEOUT        => 15, CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_HTTPHEADER     => $headers ?: ['Content-Type: application/json'],
+        CURLOPT_TIMEOUT        => $timeout, CURLOPT_SSL_VERIFYPEER => true,
     ]);
     $res  = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+    return [$code, $res];
+}
+
+function sendTelegram(array $alerts): bool {
+    $count = count($alerts);
+    $ts    = date('d/m H:i');
+    $lines = ["⚠ <b>{$count} alerta(s) — " . SITE_NAME . "</b> · {$ts}"];
+    foreach ($alerts as $a) {
+        $icon   = ($a['sev'] ?? '') === 'critical' ? '🔴' : '🟡';
+        $title  = htmlspecialchars($a['title'],  ENT_XML1);
+        $detail = htmlspecialchars($a['detail'], ENT_XML1);
+        $lines[] = "\n{$icon} <b>{$title}</b>\n{$detail}";
+    }
+    $lines[] = "\n<a href='".MONITOR_URL."'>Ver Dashboard →</a>";
+    $payload = json_encode([
+        'chat_id'    => TELEGRAM_CHAT_ID,
+        'text'       => implode("\n", $lines),
+        'parse_mode' => 'HTML',
+        'disable_web_page_preview' => true,
+    ]);
+    [$code, $res] = curlPost(
+        'https://api.telegram.org/bot'.TELEGRAM_TOKEN.'/sendMessage',
+        $payload, ['Content-Type: application/json']
+    );
     if ($code !== 200)
-        file_put_contents(__DIR__.'/error.log', date('Y-m-d H:i:s')." [alert] Resend $code: $res\n", FILE_APPEND);
+        file_put_contents(__DIR__.'/error.log', date('Y-m-d H:i:s')." [telegram] $code: $res\n", FILE_APPEND);
     return $code === 200;
+}
+
+function sendSlack(array $alerts): bool {
+    $count  = count($alerts);
+    $ts     = date('d/m H:i');
+    $blocks = [
+        ['type' => 'header', 'text' => ['type' => 'plain_text', 'text' => "⚠ {$count} alerta(s) — " . SITE_NAME . " · {$ts}"]],
+    ];
+    foreach ($alerts as $a) {
+        $icon = ($a['sev'] ?? '') === 'critical' ? '🔴' : '🟡';
+        $blocks[] = [
+            'type' => 'section',
+            'text' => ['type' => 'mrkdwn', 'text' => "{$icon} *{$a['title']}*\n{$a['detail']}"],
+        ];
+    }
+    $blocks[] = [
+        'type'     => 'actions',
+        'elements' => [['type' => 'button', 'text' => ['type' => 'plain_text', 'text' => 'Ver Dashboard'], 'url' => MONITOR_URL]],
+    ];
+    $payload = json_encode(['text' => "⚠ {$count} alerta(s) — " . SITE_NAME, 'blocks' => $blocks]);
+    [$code, $res] = curlPost(SLACK_WEBHOOK, $payload);
+    if ($code !== 200)
+        file_put_contents(__DIR__.'/error.log', date('Y-m-d H:i:s')." [slack] $code: $res\n", FILE_APPEND);
+    return $code === 200;
+}
+
+function sendAlert(array $alerts): bool {
+    $t = sendTelegram($alerts);
+    $s = sendSlack($alerts);
+    return $t && $s;
 }
 
 // ── Verificações ──────────────────────────────────────────────────────────────

@@ -79,6 +79,7 @@ input[type=text]:focus{outline:none;border-color:#38bdf8}
     <a href="uptime.php"     class="nav-pill">Uptime</a>
     <a href="security.php"   class="nav-pill">Segurança</a>
     <a href="alerts-config.php" class="nav-pill">Alertas</a>
+    <a href="server-info.php"  class="nav-pill">Servidor</a>
   </div>
 
 <?php if ($pending): ?>

@@ -91,6 +91,7 @@ code{background:#334155;padding:2px 7px;border-radius:4px}
   <a href="uptime.php"     style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Uptime</a>
   <a href="security.php"   style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Segurança</a>
   <a href="alerts-config.php" style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Alertas</a>
+  <a href="server-info.php"  style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Servidor</a>
 </div>
 
 <?php if (!$hasData): ?>

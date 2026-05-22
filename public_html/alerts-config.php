@@ -8,7 +8,7 @@ $stateF = $priv . '/alert_state.json';
 
 function acCfg(string $f): array {
     $def = [
-        'recipients' => [ALERT_TO],
+        'recipients' => [defined('ALERT_TO') ? ALERT_TO : 'admin@seudominio.com'],
         'thresholds' => ['cpu'=>85,'ram'=>90,'disk'=>88,'queue'=>100,'load'=>14,'susp_sends'=>30],
         'cooldowns'  => ['cpu'=>60,'ram'=>60,'disk'=>120,'service'=>30,'site'=>30,'queue'=>60,'suspicious'=>240,'load'=>60],
     ];
@@ -279,6 +279,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#38bdf8}
   <a href="uptime.php">Uptime</a>
   <a href="security.php">Segurança</a>
   <a href="alerts-config.php" class="active">Alertas</a>
+  <a href="server-info.php">Servidor</a>
 </nav>
 
 <?php if ($msg): ?>

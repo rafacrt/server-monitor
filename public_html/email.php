@@ -105,6 +105,7 @@ tr:hover td{background:#ffffff06}
     <a href="uptime.php"     class="nav-pill">Uptime</a>
     <a href="security.php"   class="nav-pill">Segurança</a>
     <a href="alerts-config.php" class="nav-pill">Alertas</a>
+    <a href="server-info.php"  class="nav-pill">Servidor</a>
   </div>
 
   <?php

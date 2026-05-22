@@ -183,6 +183,7 @@ $loadColor = $load[0] > 10 ? '#ef4444' : ($load[0] > 6 ? '#f59e0b' : '#22c55e');
     <a href="uptime.php"     class="nav-pill">Uptime</a>
     <a href="security.php"   class="nav-pill">Segurança</a>
     <a href="alerts-config.php" class="nav-pill">Alertas</a>
+    <a href="server-info.php"  class="nav-pill">Servidor</a>
     <?php if ($topDisk): ?><button class="nav-pill" onclick="toggleDisk(this)">Disco por Conta</button><?php endif; ?>
   </div>
 

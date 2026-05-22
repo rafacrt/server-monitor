@@ -267,7 +267,7 @@ function collectQueueDetails(PDO $pdo): void {
             $subject    = '(sem assunto)';
 
             $lines = explode("\n", $content);
-            $phase = 'flags';
+            $phase = 'flags'; // flags → after_xx → recip_count → recipients → headers
             $recipCount = 0;
             foreach ($lines as $idx => $ln) {
                 $ln = rtrim($ln);
@@ -337,6 +337,8 @@ function processQueueActions(): void {
     file_put_contents($actionsFile, json_encode([]));
 }
 
+// ── Disco por conta ───────────────────────────────────────────────────────────
+
 function collectDiskByAccount(PDO $pdo): void {
     $out = [];
     exec("du -sb /home/*/ 2>/dev/null", $out);
@@ -349,6 +351,8 @@ function collectDiskByAccount(PDO $pdo): void {
     }
     $pdo->exec("DELETE FROM disk_by_account WHERE collected_at < DATE_SUB(NOW(), INTERVAL 7 DAY)");
 }
+
+// ── Uptime dos sites ──────────────────────────────────────────────────────────
 
 function curlMultiBatch(array $domains, int $timeout = 8): array {
     $results = [];
@@ -389,12 +393,13 @@ function checkSiteUptime(PDO $pdo): void {
     $allDomains = array_merge(...array_values($map) ?: [[]]);
     if (!$allDomains) return;
 
+    // State: last_full_check (ts) + pending_down (domain => first_detected_ts)
     $stateFile = __DIR__ . '/site_check_state.json';
     $state    = file_exists($stateFile) ? json_decode(file_get_contents($stateFile), true) : [];
     $lastFull = (int)($state['last_full_check'] ?? 0);
     $pending  = $state['pending_down'] ?? [];
 
-    $doFullCheck    = (time() - $lastFull) >= 3600;
+    $doFullCheck    = (time() - $lastFull) >= 3600; // full sweep every 1 hour
     $domainsToCheck = $doFullCheck ? $allDomains : array_keys($pending);
 
     if (!$domainsToCheck) {
@@ -415,13 +420,16 @@ function checkSiteUptime(PDO $pdo): void {
     $alertStateFile = PRIVATE_DIR . '/alert_state.json';
 
     foreach ($results as $domain => $r) {
+        // Down = timeout (0) or 5xx; 4xx = server responds = up
         $isUp = $r['code'] >= 200 && $r['code'] < 500;
         $stmtIns->execute([$domain, $r['code'], $r['ms'], $isUp ? 1 : 0]);
 
         if (!$isUp) {
             if (!isset($pending[$domain])) {
+                // First detection: mark as pending, wait 5 min for confirmation
                 $pending[$domain] = time();
             } elseif ((time() - $pending[$domain]) >= 300) {
+                // Confirmed down (5+ min): open incident and let alerts.php notify
                 $stmtOpen->execute([$domain, $r['code'], $domain]);
                 unset($pending[$domain]);
             }
@@ -430,6 +438,7 @@ function checkSiteUptime(PDO $pdo): void {
             $stmtHasOpen->execute([$domain]);
             if ($stmtHasOpen->fetch()) {
                 $stmtResolve->execute([$domain]);
+                // Clear alert state so the next outage triggers a fresh alert immediately
                 if (file_exists($alertStateFile)) {
                     $alertState = json_decode(file_get_contents($alertStateFile), true) ?: [];
                     $ck = 'site_' . md5($domain);
@@ -448,6 +457,8 @@ function checkSiteUptime(PDO $pdo): void {
     $pdo->exec("DELETE FROM site_checks WHERE checked_at < DATE_SUB(NOW(), INTERVAL 7 DAY)");
 }
 
+// ── Atividade autenticada de e-mail (logins suspeitos) ────────────────────────
+
 function collectAuthEvents(PDO $pdo): void {
     $stateFile = __DIR__ . '/auth_events_state.json';
     $state     = file_exists($stateFile) ? json_decode(file_get_contents($stateFile), true) : [];
@@ -462,7 +473,7 @@ function collectAuthEvents(PDO $pdo): void {
     if (!$fh) return;
     fseek($fh, $prevPos);
 
-    $events = [];
+    $events = []; // [date][account][ip] = count
 
     while (!feof($fh)) {
         $line = fgets($fh);
@@ -502,11 +513,14 @@ function collectAuthEvents(PDO $pdo): void {
     $pdo->exec("DELETE FROM email_auth_events WHERE event_date < DATE_SUB(CURDATE(), INTERVAL 30 DAY)");
 }
 
+// ── Segurança: fail2ban + auth.log ────────────────────────────────────────────
+
 function collectSecurityEvents(PDO $pdo): void {
     $stateFile = __DIR__ . '/security_state.json';
     $state     = file_exists($stateFile) ? json_decode(file_get_contents($stateFile), true) : [];
     $events    = [];
 
+    // fail2ban.log
     $f2bPath = '/var/log/fail2ban.log';
     if (is_readable($f2bPath)) {
         $inode   = fileinode($f2bPath);
@@ -517,6 +531,7 @@ function collectSecurityEvents(PDO $pdo): void {
             while (!feof($fh)) {
                 $line = fgets($fh);
                 if (!$line) continue;
+                // 2026-05-12 10:23:45,123 fail2ban.actions [...]: NOTICE  [jail] Ban 1.2.3.4
                 if (!preg_match('/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/', $line, $dm)) continue;
                 $loggedAt = $dm[1];
                 if (preg_match('/NOTICE\s+\[(\S+)\]\s+(Ban|Unban)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/', $line, $m)) {
@@ -528,6 +543,7 @@ function collectSecurityEvents(PDO $pdo): void {
         }
     }
 
+    // auth.log (SSH failures)
     $authPath = '/var/log/auth.log';
     if (is_readable($authPath)) {
         $inode   = fileinode($authPath);
@@ -539,6 +555,7 @@ function collectSecurityEvents(PDO $pdo): void {
             while (!feof($fh)) {
                 $line = fgets($fh);
                 if (!$line) continue;
+                // May 12 10:23:45 host sshd[1234]: Failed password for root from 1.2.3.4 port...
                 if (strpos($line, 'sshd') === false) continue;
                 if (!preg_match('/^(\w{3}\s+\d+\s+\d{2}:\d{2}:\d{2})/', $line, $dm)) continue;
                 $loggedAt = date('Y-m-d H:i:s', strtotime("$year {$dm[1]}"));
@@ -562,7 +579,149 @@ function collectSecurityEvents(PDO $pdo): void {
     }
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+function createTables(PDO $pdo): void {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS system_metrics (
+        id INT AUTO_INCREMENT PRIMARY KEY, collected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        cpu_percent FLOAT, ram_used_mb INT, ram_total_mb INT,
+        disk_used_gb FLOAT, disk_total_gb FLOAT,
+        load_1m FLOAT, load_5m FLOAT, load_15m FLOAT, services_json TEXT)");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS cpu_by_account (
+        id INT AUTO_INCREMENT PRIMARY KEY, collected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        account VARCHAR(100), cpu_pct FLOAT, proc_count INT,
+        INDEX idx_acc_time (account, collected_at))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS email_stats_daily (
+        id INT AUTO_INCREMENT PRIMARY KEY, stat_date DATE, domain VARCHAR(255),
+        received INT DEFAULT 0, sent INT DEFAULT 0, bounced INT DEFAULT 0, rejected INT DEFAULT 0,
+        UNIQUE KEY uniq_domain_date (stat_date, domain))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS email_queue_snap (
+        id INT AUTO_INCREMENT PRIMARY KEY, collected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        queue_count INT DEFAULT 0)");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS email_reject_reasons (
+        id INT AUTO_INCREMENT PRIMARY KEY, stat_date DATE NOT NULL,
+        domain VARCHAR(255) NOT NULL, reason_type VARCHAR(30) NOT NULL, count INT DEFAULT 0,
+        UNIQUE KEY uniq_reason (stat_date, domain, reason_type))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS email_reject_ips (
+        id INT AUTO_INCREMENT PRIMARY KEY, stat_date DATE NOT NULL,
+        domain VARCHAR(255) NOT NULL, sender_ip VARCHAR(45) NOT NULL, count INT DEFAULT 0,
+        UNIQUE KEY uniq_ip (stat_date, domain, sender_ip),
+        INDEX idx_domain_date (stat_date, domain))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS email_bounce_events (
+        id INT AUTO_INCREMENT PRIMARY KEY, logged_at DATETIME NOT NULL, bounce_date DATE NOT NULL,
+        recipient_domain VARCHAR(255), recipient VARCHAR(255), reason VARCHAR(500),
+        INDEX idx_date_domain (bounce_date, recipient_domain))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS disk_by_account (
+        id INT AUTO_INCREMENT PRIMARY KEY, collected_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        account VARCHAR(100) NOT NULL, disk_mb INT NOT NULL,
+        INDEX idx_acc_time (account, collected_at))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS site_checks (
+        id INT AUTO_INCREMENT PRIMARY KEY, checked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        domain VARCHAR(255) NOT NULL, status_code INT, response_ms INT, is_up TINYINT(1) DEFAULT 1,
+        INDEX idx_domain_time (domain, checked_at))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS site_incidents (
+        id INT AUTO_INCREMENT PRIMARY KEY, domain VARCHAR(255) NOT NULL,
+        started_at DATETIME NOT NULL, resolved_at DATETIME DEFAULT NULL,
+        last_status_code INT, INDEX idx_domain (domain))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS email_auth_events (
+        id INT AUTO_INCREMENT PRIMARY KEY, event_date DATE NOT NULL,
+        account VARCHAR(255) NOT NULL, sender_ip VARCHAR(45) NOT NULL, send_count INT DEFAULT 0,
+        UNIQUE KEY uniq_auth (event_date, account, sender_ip),
+        INDEX idx_date_account (event_date, account))");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS security_events (
+        id INT AUTO_INCREMENT PRIMARY KEY, logged_at DATETIME NOT NULL,
+        event_type VARCHAR(20), jail VARCHAR(50), ip VARCHAR(45),
+        INDEX idx_logged (logged_at), INDEX idx_ip (ip))");
+}
+
+// ── Informações estáticas do servidor ────────────────────────────────────────
+
+function collectServerInfo(): array {
+    $cpuinfo  = @file_get_contents('/proc/cpuinfo') ?: '';
+    preg_match_all('/^processor\s*:/m', $cpuinfo, $procs);
+    $threads = count($procs[0]);
+    $cpuModel = '';
+    if (preg_match('/^model name\s*:\s*(.+)$/m', $cpuinfo, $m)) $cpuModel = trim($m[1]);
+    $physCores = 0;
+    if (preg_match('/^cpu cores\s*:\s*(\d+)/m', $cpuinfo, $m)) $physCores = (int)$m[1];
+
+    $osName = '';
+    $osRelease = @file_get_contents('/etc/os-release') ?: '';
+    if (preg_match('/^PRETTY_NAME="(.+)"/m', $osRelease, $m)) $osName = $m[1];
+
+    $kernel   = trim(php_uname('r'));
+    $hostname = trim(gethostname());
+
+    // Running PHP-FPM versions — cmdline format: "php-fpm: master process (/etc/php/8.2/fpm/php-fpm.conf)"
+    $runningFpm = [];
+    foreach (new DirectoryIterator('/proc') as $e) {
+        if (!$e->isDir() || !ctype_digit($e->getFilename())) continue;
+        $cmd = @file_get_contents('/proc/' . $e->getFilename() . '/cmdline');
+        if (!$cmd) continue;
+        $cmd = str_replace("\0", ' ', $cmd);
+        if (preg_match('/\/etc\/php\/(\d+\.\d+)\/fpm/', $cmd, $m)) {
+            $runningFpm[$m[1]] = true;
+        }
+    }
+
+    $phpVersions = [];
+    foreach (glob('/usr/bin/php[0-9]*.[0-9]*') as $bin) {
+        if (!preg_match('/php(\d+\.\d+)$/', $bin, $m)) continue;
+        $ver = $m[1]; $fullVer = ''; $out = [];
+        exec("$bin -r 'echo PHP_VERSION;' 2>/dev/null", $out);
+        if ($out) $fullVer = trim($out[0]);
+        $phpVersions[] = ['version' => $ver, 'full_version' => $fullVer ?: $ver, 'fpm_running' => isset($runningFpm[$ver])];
+    }
+
+    $nginxVer = ''; $out = [];
+    exec('nginx -v 2>&1', $out);
+    if ($out && preg_match('/nginx\/(\S+)/', $out[0], $m)) $nginxVer = $m[1];
+
+    $apacheVer = ''; $out = [];
+    exec('apache2 -v 2>&1', $out);
+    if ($out && preg_match('/Apache\/(\S+)/', $out[0], $m)) $apacheVer = $m[1];
+
+    $mariaVer = ''; $out = [];
+    exec('mariadb --version 2>/dev/null || mysql --version 2>/dev/null', $out);
+    if ($out) {
+        $vLine = implode(' ', $out);
+        if (preg_match('/(\d+\.\d+\.\d+(?:-MariaDB)?)/i', $vLine, $m)) $mariaVer = $m[1];
+    }
+
+    $eximVer = ''; $out = [];
+    exec('exim --version 2>/dev/null', $out);
+    if ($out && preg_match('/Exim version (\S+)/', $out[0], $m)) $eximVer = $m[1];
+
+    $dovecotVer = ''; $out = [];
+    exec('dovecot --version 2>/dev/null', $out);
+    if ($out) $dovecotVer = trim($out[0]);
+
+    $hestiaVer = '';
+    $hconf = @file_get_contents('/usr/local/hestia/conf/hestia.conf') ?: '';
+    if (preg_match("/VERSION='([^']+)'/", $hconf, $m)) $hestiaVer = $m[1];
+
+    $mainIp = ''; $out = [];
+    exec("ip -4 addr show | grep -oP '(?<=inet )\\d+\\.\\d+\\.\\d+\\.\\d+' | grep -v '^127\\.' | grep -v '^172\\.' | head -1", $out);
+    if ($out) $mainIp = trim($out[0]);
+
+    return [
+        'collected_at'    => date('Y-m-d H:i:s'),
+        'hostname'        => $hostname,
+        'main_ip'         => $mainIp,
+        'os'              => $osName,
+        'kernel'          => $kernel,
+        'cpu_model'       => $cpuModel,
+        'cpu_threads'     => $threads,
+        'cpu_cores'       => $physCores,
+        'php_versions'    => $phpVersions,
+        'nginx_version'   => $nginxVer,
+        'apache_version'  => $apacheVer,
+        'mariadb_version' => $mariaVer,
+        'exim_version'    => $eximVer,
+        'dovecot_version' => $dovecotVer,
+        'hestia_version'  => $hestiaVer,
+    ];
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
 
 processQueueActions();
 
@@ -573,6 +732,12 @@ $disk = getDisk();
 $svcs = getServices();
 
 $uptime = (int)file_get_contents('/proc/uptime');
+
+$serverInfo = collectServerInfo();
+$siPath = PRIVATE_DIR . '/server_info.json';
+file_put_contents($siPath, json_encode($serverInfo, JSON_PRETTY_PRINT));
+chown($siPath, WEB_USER);
+chmod($siPath, 0644);
 
 $jsonPath = PRIVATE_DIR . '/current.json';
 file_put_contents($jsonPath, json_encode([
@@ -607,6 +772,7 @@ file_put_contents($mapPath, json_encode($accountsMap));
 chown($mapPath, WEB_USER);
 chmod($mapPath, 0644);
 
+// Process kill requests from web dashboard
 $killFile = PRIVATE_DIR . '/kill_requests.json';
 if (file_exists($killFile)) {
     $kills = json_decode(file_get_contents($killFile), true) ?: [];
@@ -633,6 +799,8 @@ try {
         DB_USER, DB_PASS,
         [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
     );
+
+    createTables($pdo);
 
     $pdo->prepare("
         INSERT INTO system_metrics
