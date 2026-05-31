@@ -139,6 +139,18 @@ code{background:#334155;padding:2px 6px;border-radius:4px;font-size:.75rem}
 .warn-row{background:#451a0333;border-left:3px solid #f59e0b}
 .no-data{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:24px;color:#475569;font-size:.85rem}
 .num{text-align:right}
+@media(max-width:680px){
+  header{padding:10px 12px}
+  .container{padding:14px 10px}
+  .nav-pills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .nav-pills::-webkit-scrollbar{display:none}
+  .nav-pill{flex-shrink:0;white-space:nowrap}
+  .metrics-grid{grid-template-columns:repeat(2,1fr)}
+  .charts-grid{grid-template-columns:1fr!important}
+  .chart-wrap{height:160px}
+  .table-card{overflow-x:auto}
+  table{min-width:500px}
+}
 </style>
 </head>
 <body>

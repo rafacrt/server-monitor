@@ -66,7 +66,22 @@ function pctColor(int $pct): string {
     return '#22c55e';
 }
 
-$loadColor = $load[0] > 10 ? '#ef4444' : ($load[0] > 6 ? '#f59e0b' : '#22c55e');
+function loadColor(float $v): string {
+    if ($v > 10) return '#ef4444';
+    if ($v > 6)  return '#f59e0b';
+    return '#22c55e';
+}
+$loadColor = loadColor($load[0]);
+$satPct    = min(100, (int)round($load[0] / 12 * 100));
+$satColor  = pctColor($satPct);
+
+$trendLabel = 'Estável';
+$trendColor = '#f59e0b';
+$trendIcon  = '→';
+if ($load[2] > 0) {
+    if ($load[0] > $load[2] * 1.15) { $trendLabel = 'Crescendo'; $trendColor = '#ef4444'; $trendIcon = '↑'; }
+    elseif ($load[0] < $load[2] * 0.85) { $trendLabel = 'Caindo'; $trendColor = '#22c55e'; $trendIcon = '↓'; }
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -86,8 +101,8 @@ $loadColor = $load[0] > 10 ? '#ef4444' : ($load[0] > 6 ? '#f59e0b' : '#22c55e');
   .card-link .card { transition: border-color .15s, background .15s; }
   .card-link:hover .card { border-color: #38bdf8; background: #1e3a4a; }
   .card-link .card-label::after { content: ' ↗'; font-size:.6rem; color:#38bdf855; }
-  .nav-pills { display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
-  .nav-pill { text-decoration:none; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:8px 16px; font-size:.82rem; font-weight:500; color:#94a3b8; transition:all .15s; }
+  .nav-pills { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+  .nav-pill { text-decoration:none; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:8px 14px; font-size:.82rem; font-weight:500; color:#94a3b8; transition:all .15s; white-space:nowrap; }
   .nav-pill:hover, .nav-pill.active { background:#334155; color:#e2e8f0; border-color:#475569; }
   header {
     background: #1e293b; border-bottom: 1px solid #334155;
@@ -106,7 +121,7 @@ $loadColor = $load[0] > 10 ? '#ef4444' : ($load[0] > 6 ? '#f59e0b' : '#22c55e');
   .section-title:first-child { margin-top: 0; }
   .metrics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 14px;
   }
   .card {
@@ -129,14 +144,14 @@ $loadColor = $load[0] > 10 ? '#ef4444' : ($load[0] > 6 ? '#f59e0b' : '#22c55e');
   .svc-down { background: #ef4444; box-shadow: 0 0 5px #ef444499; }
   .charts-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(420px,100%), 1fr));
     gap: 14px;
   }
   .chart-card {
     background: #1e293b; border: 1px solid #334155;
     border-radius: 10px; padding: 18px 20px;
   }
-  .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
   .chart-title  { font-size: .82rem; font-weight: 600; color: #cbd5e1; }
   .period-tabs  { display: flex; gap: 4px; }
   .period-btn {
@@ -146,6 +161,7 @@ $loadColor = $load[0] > 10 ? '#ef4444' : ($load[0] > 6 ? '#f59e0b' : '#22c55e');
   }
   .period-btn.active, .period-btn:hover { background: #334155; color: #e2e8f0; }
   .chart-wrap { position: relative; height: 185px; }
+  .chart-wrap-tall { position: relative; height: 240px; }
   .alert-bar {
     background: #450a0a; border: 1px solid #b91c1c;
     border-radius: 8px; padding: 10px 16px; font-size: .82rem;
@@ -158,6 +174,34 @@ $loadColor = $load[0] > 10 ? '#ef4444' : ($load[0] > 6 ? '#f59e0b' : '#22c55e');
   code { background: #334155; padding: 2px 7px; border-radius: 4px; font-size: .82rem; }
   button.nav-pill { border: 1px solid #334155; cursor: pointer; }
   .disk-panel { display: none; margin-bottom: 8px; }
+  .trend-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border-radius: 20px; font-size: .8rem; font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .load-insight {
+    background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+    padding: 14px 18px; font-size: .8rem; color: #94a3b8; line-height: 1.7;
+  }
+  .load-insight strong { color: #e2e8f0; }
+
+  /* ── Responsividade mobile ── */
+  @media (max-width: 680px) {
+    header { padding: 10px 12px; }
+    .header-meta { font-size: .65rem; }
+    .container { padding: 14px 10px; }
+    .nav-pills { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .nav-pills::-webkit-scrollbar { display: none; }
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .card { padding: 14px 14px; }
+    .card-value { font-size: 1.6rem; }
+    .charts-grid { grid-template-columns: 1fr !important; }
+    .chart-wrap { height: 160px; }
+    .chart-wrap-tall { height: 200px; }
+    .services-grid { gap: 7px; }
+    .svc-badge { padding: 6px 10px; font-size: .78rem; }
+    .disk-panel .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+  }
 </style>
 </head>
 <body>
@@ -303,6 +347,72 @@ $loadColor = $load[0] > 10 ? '#ef4444' : ($load[0] > 6 ? '#f59e0b' : '#22c55e');
     </div>
 
   </div>
+
+  <!-- ── Análise de Load ──────────────────────────────────────────────────── -->
+  <div class="section-title">Análise de Load</div>
+
+  <div class="metrics-grid" style="margin-bottom:14px">
+    <div class="card">
+      <div class="card-label">Load 1 min</div>
+      <div class="card-value" style="color:<?= loadColor($load[0]) ?>"><?= round($load[0],2) ?></div>
+      <div class="card-sub">Último minuto</div>
+      <div class="bar-track"><div class="bar-fill" style="width:<?= min(100,round($load[0]/12*100)) ?>%;background:<?= loadColor($load[0]) ?>"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Load 5 min</div>
+      <div class="card-value" style="color:<?= loadColor($load[1]) ?>"><?= round($load[1],2) ?></div>
+      <div class="card-sub">Média 5 minutos</div>
+      <div class="bar-track"><div class="bar-fill" style="width:<?= min(100,round($load[1]/12*100)) ?>%;background:<?= loadColor($load[1]) ?>"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Load 15 min</div>
+      <div class="card-value" style="color:<?= loadColor($load[2]) ?>"><?= round($load[2],2) ?></div>
+      <div class="card-sub">Média 15 minutos</div>
+      <div class="bar-track"><div class="bar-fill" style="width:<?= min(100,round($load[2]/12*100)) ?>%;background:<?= loadColor($load[2]) ?>"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Saturação</div>
+      <div class="card-value" style="color:<?= $satColor ?>"><?= $satPct ?>%</div>
+      <div class="card-sub"><?= round($load[0],2) ?> / 12 CPUs</div>
+      <div class="bar-track"><div class="bar-fill" style="width:<?= $satPct ?>%;background:<?= $satColor ?>"></div></div>
+    </div>
+  </div>
+
+  <div class="trend-badge" style="background:<?= $trendColor ?>22;border:1px solid <?= $trendColor ?>55;color:<?= $trendColor ?>">
+    <?= $trendIcon ?> Tendência: <?= $trendLabel ?>
+    &nbsp;·&nbsp; Load 1m <?= $load[0] > $load[2] ? '>' : ($load[0] < $load[2] ? '<' : '=') ?> 15m
+  </div>
+
+  <div class="load-insight" style="margin-bottom:14px">
+    <strong>Servidor:</strong> 12 CPUs —
+    load &lt; 6 é confortável, 6-10 é atenção, &gt; 10 é crítico.<br>
+    <?php
+      $diff = round($load[0] - $load[2], 2);
+      $sign = $diff >= 0 ? '+' : '';
+      if (abs($diff) < 0.5) {
+          echo "Carga <strong>estável</strong> — variação mínima de {$sign}{$diff} entre 1m e 15m.";
+      } elseif ($diff > 0) {
+          echo "Carga <strong>aumentando</strong> — load subiu {$sign}{$diff} nos últimos 15 minutos. Monitore processos em CPU por Conta.";
+      } else {
+          echo "Carga <strong>diminuindo</strong> — load caiu {$diff} nos últimos 15 minutos. Situação se normalizando.";
+      }
+    ?>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card" style="grid-column:1/-1">
+      <div class="chart-header">
+        <span class="chart-title">Load Average — 1m / 5m / 15m</span>
+        <div class="period-tabs">
+          <button class="period-btn active" onclick="loadLoadChart(6,this)">6h</button>
+          <button class="period-btn" onclick="loadLoadChart(24,this)">24h</button>
+          <button class="period-btn" onclick="loadLoadChart(168,this)">7d</button>
+        </div>
+      </div>
+      <div class="chart-wrap-tall"><canvas id="load-avg-chart"></canvas></div>
+    </div>
+  </div>
+
   <?php endif; ?>
 
 <?php endif; ?>
@@ -365,7 +475,96 @@ async function loadChart(canvasId, metric, hours, btn) {
 <?php if ($hasHistory): ?>
 loadChart('cpu-chart', 'cpu', 6, null);
 loadChart('ram-chart', 'ram', 6, null);
+loadLoadChart(6, null);
 <?php endif; ?>
+
+let loadAvgChart = null;
+async function loadLoadChart(hours, btn) {
+  if (btn) {
+    btn.closest('.period-tabs').querySelectorAll('.period-btn')
+       .forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  const data = await fetch(`api.php?action=load-history&hours=${hours}`).then(r => r.json());
+  const numCpus = 12;
+  const threshold = data.labels.map(() => numCpus);
+
+  const datasets = [
+    {
+      label: '1 min',
+      data: data.l1,
+      borderColor: '#38bdf8',
+      backgroundColor: '#38bdf822',
+      borderWidth: 2, pointRadius: 0, fill: true, tension: 0.3,
+    },
+    {
+      label: '5 min',
+      data: data.l5,
+      borderColor: '#818cf8',
+      backgroundColor: 'transparent',
+      borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3,
+    },
+    {
+      label: '15 min',
+      data: data.l15,
+      borderColor: '#34d399',
+      backgroundColor: 'transparent',
+      borderWidth: 2, pointRadius: 0, fill: false, tension: 0.3,
+    },
+    {
+      label: 'Saturação (12 CPUs)',
+      data: threshold,
+      borderColor: '#ef444466',
+      backgroundColor: 'transparent',
+      borderWidth: 1, borderDash: [6, 4], pointRadius: 0, fill: false,
+    },
+  ];
+
+  if (loadAvgChart) {
+    loadAvgChart.data.labels   = data.labels;
+    loadAvgChart.data.datasets = datasets;
+    loadAvgChart.update();
+    return;
+  }
+
+  const ctx = document.getElementById('load-avg-chart').getContext('2d');
+  loadAvgChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: data.labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 300 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 14 },
+        },
+        tooltip: {
+          callbacks: {
+            label: c => c.dataset.label === 'Saturação (12 CPUs)'
+              ? null
+              : ` ${c.dataset.label}: ${c.raw}`,
+          },
+          filter: item => item.dataset.label !== 'Saturação (12 CPUs)',
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#64748b', font: { size: 10 }, maxTicksLimit: 8 },
+          grid:  { color: '#1e293b' },
+        },
+        y: {
+          min: 0,
+          ticks: { color: '#64748b', font: { size: 10 } },
+          grid:  { color: '#334155' },
+          title: { display: true, text: 'Load', color: '#475569', font: { size: 10 } },
+        }
+      }
+    }
+  });
+}
 
 function toggleDisk(btn) {
   const panel = document.getElementById('disk-panel');

@@ -60,6 +60,19 @@ code{background:#334155;padding:2px 6px;border-radius:4px;font-size:.75rem;word-
 input[type=text]{background:#1e293b;border:1px solid #334155;color:#e2e8f0;padding:5px 10px;border-radius:6px;font-size:.78rem;width:260px}
 input[type=text]:focus{outline:none;border-color:#38bdf8}
 #toast{position:fixed;bottom:24px;right:24px;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:10px 16px;font-size:.82rem;color:#e2e8f0;display:none;z-index:100;box-shadow:0 4px 20px #00000066}
+@media(max-width:680px){
+  header{padding:10px 12px}
+  .container{padding:14px 10px}
+  .nav-pills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .nav-pills::-webkit-scrollbar{display:none}
+  .nav-pill{flex-shrink:0;white-space:nowrap}
+  .metrics-grid{grid-template-columns:repeat(2,1fr)}
+  .table-card{overflow-x:auto}
+  table{min-width:600px}
+  input[type=text]{width:100%}
+  .actions-bar{flex-direction:column;align-items:flex-start}
+  .filter-row{flex-direction:column;align-items:flex-start}
+}
 </style>
 </head>
 <body>

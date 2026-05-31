@@ -15,6 +15,32 @@ try {
     exit;
 }
 
+// ── Histórico de Load Average (1m / 5m / 15m) ───────────────────────────────
+if ($action === 'load-history') {
+    $hours = min(max((int)($_GET['hours'] ?? 6), 1), 168);
+    $stmt  = $pdo->prepare("
+        SELECT DATE_FORMAT(collected_at,'%d/%m %H:%i') AS label,
+               ROUND(AVG(load_1m),2)  AS l1,
+               ROUND(AVG(load_5m),2)  AS l5,
+               ROUND(AVG(load_15m),2) AS l15,
+               ROUND(MAX(load_1m),2)  AS peak1
+        FROM system_metrics
+        WHERE collected_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+        GROUP BY DATE_FORMAT(collected_at,'%Y-%m-%d %H:%i')
+        ORDER BY MIN(collected_at)
+    ");
+    $stmt->execute([$hours]);
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    echo json_encode([
+        'labels' => array_column($rows, 'label'),
+        'l1'     => array_map(fn($r) => (float)$r['l1'],   $rows),
+        'l5'     => array_map(fn($r) => (float)$r['l5'],   $rows),
+        'l15'    => array_map(fn($r) => (float)$r['l15'],  $rows),
+        'peak1'  => array_map(fn($r) => (float)$r['peak1'],$rows),
+    ]);
+    exit;
+}
+
 // ── Gráfico global CPU/RAM (legado) ─────────────────────────────────────────
 if ($action === 'chart') {
     $metric = $_GET['metric'] ?? 'cpu';

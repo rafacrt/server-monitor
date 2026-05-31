@@ -27,6 +27,9 @@ try {
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
 header{background:#1e293b;border-bottom:1px solid #334155;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
 header h1{font-size:1.1rem;font-weight:600;color:#f1f5f9}header h1 span{color:#38bdf8}
+.nav-pills{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.nav-pill{text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 14px;font-size:.82rem;font-weight:500;color:#94a3b8;transition:all .15s;white-space:nowrap}
+.nav-pill:hover,.nav-pill.active{background:#334155;color:#e2e8f0;border-color:#475569}
 .back{font-size:.78rem;color:#64748b;text-decoration:none;padding:5px 10px;border:1px solid #334155;border-radius:6px;transition:all .15s}.back:hover{color:#e2e8f0;border-color:#64748b}
 .container{max-width:1300px;margin:0 auto;padding:24px 20px}
 .section-title{font-size:.68rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#475569;margin-bottom:12px;margin-top:28px}
@@ -74,6 +77,17 @@ code{background:#334155;padding:2px 7px;border-radius:4px}
 .kill-btn{background:#7f1d1d44;border:1px solid #7f1d1d88;color:#f87171;padding:3px 10px;border-radius:4px;font-size:.72rem;cursor:pointer;transition:all .15s;white-space:nowrap}
 .kill-btn:hover{background:#7f1d1d99}
 .kill-btn:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:680px){
+  header{padding:10px 12px}
+  .container{padding:14px 10px}
+  [style*="display:flex"][style*="gap:10px"]{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
+  .charts-grid{grid-template-columns:1fr!important}
+  .chart-wrap{height:180px}
+  .table-card{overflow-x:auto}
+  .filter-row{flex-direction:column;align-items:flex-start}
+  select{width:100%}
+  .modal{width:95%;max-height:90vh}
+}
 </style>
 </head>
 <body>
@@ -83,15 +97,15 @@ code{background:#334155;padding:2px 7px;border-radius:4px}
 </header>
 <div class="container">
 
-<div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-  <a href="index.php"      style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Sistema</a>
-  <a href="cpu-detail.php" style="text-decoration:none;background:#334155;border:1px solid #475569;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#e2e8f0">CPU por Conta</a>
-  <a href="email.php"      style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">E-mail</a>
-  <a href="queue.php"      style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Fila</a>
-  <a href="uptime.php"     style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Uptime</a>
-  <a href="security.php"   style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Segurança</a>
-  <a href="alerts-config.php" style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Alertas</a>
-  <a href="server-info.php"  style="text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8">Servidor</a>
+<div class="nav-pills">
+  <a href="index.php"         class="nav-pill">Sistema</a>
+  <a href="cpu-detail.php"    class="nav-pill active">CPU por Conta</a>
+  <a href="email.php"         class="nav-pill">E-mail</a>
+  <a href="queue.php"         class="nav-pill">Fila</a>
+  <a href="uptime.php"        class="nav-pill">Uptime</a>
+  <a href="security.php"      class="nav-pill">Segurança</a>
+  <a href="alerts-config.php" class="nav-pill">Alertas</a>
+  <a href="server-info.php"   class="nav-pill">Servidor</a>
 </div>
 
 <?php if (!$hasData): ?>

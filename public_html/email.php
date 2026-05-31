@@ -83,6 +83,21 @@ tr:hover td{background:#ffffff06}
 .nav-pills{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
 .nav-pill{text-decoration:none;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:8px 16px;font-size:.82rem;font-weight:500;color:#94a3b8;transition:all .15s}
 .nav-pill:hover,.nav-pill.active{background:#334155;color:#e2e8f0;border-color:#475569}
+@media(max-width:680px){
+  header{padding:10px 12px}
+  .container{padding:14px 10px}
+  .nav-pills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .nav-pills::-webkit-scrollbar{display:none}
+  .nav-pill{flex-shrink:0;white-space:nowrap}
+  .metrics-grid{grid-template-columns:repeat(2,1fr)}
+  .charts-grid{grid-template-columns:1fr!important}
+  .chart-wrap{height:160px}
+  .table-card{overflow-x:auto}
+  table{min-width:500px}
+  .header-right{flex-direction:column;align-items:flex-end;gap:4px}
+  .period-bar{flex-wrap:wrap}
+  .filter-row{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>

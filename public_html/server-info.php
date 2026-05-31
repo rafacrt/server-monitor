@@ -94,6 +94,16 @@ $runningFpmCount = count(array_filter($phpVersions, fn($v) => $v['fpm_running'])
   .info-val { color:#cbd5e1; text-align:right; font-family:monospace; font-size:.8rem; }
   .no-snap { background:#1e293b; border:1px solid #334155; border-radius:10px; padding:20px; color:#475569; font-size:.85rem; }
   code { background:#334155; padding:2px 7px; border-radius:4px; font-size:.82rem; }
+  @media(max-width:680px){
+    header{padding:10px 12px}
+    .container{padding:14px 10px}
+    .nav-pills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .nav-pills::-webkit-scrollbar{display:none}
+    .nav-pill{flex-shrink:0;white-space:nowrap}
+    .grid-4,.grid-3,.grid-2{grid-template-columns:1fr!important}
+    .info-table{display:block;overflow-x:auto}
+    .php-cards{grid-template-columns:1fr!important}
+  }
 </style>
 </head>
 <body>

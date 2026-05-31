@@ -261,6 +261,15 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:#38bdf8}
 .thr-input-row input{max-width:100px;width:100px}
 .thr-input-row span{font-size:.75rem;color:#64748b}
 .sel-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:5px;font-size:.72rem;font-weight:500;background:#0369a122;color:#38bdf8;border:1px solid #0369a133;cursor:pointer;white-space:nowrap}
+@media(max-width:680px){
+  header{padding:10px 12px}
+  .container{padding:14px 10px}
+  .nav-pills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .nav-pills::-webkit-scrollbar{display:none}
+  .nav-pill{flex-shrink:0;white-space:nowrap}
+  .grid-thr{grid-template-columns:1fr!important}
+  .form-group input,.form-group textarea,.form-group select{width:100%}
+}
 </style>
 </head>
 <body>
