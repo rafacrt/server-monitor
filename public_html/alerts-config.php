@@ -165,6 +165,9 @@ foreach ($state as $key => $entry) {
     $enriched[$key] = ['label' => $label, 'detail' => $detail, 'ts' => $ts];
 }
 
+// Exibir apenas alertas disparados nas últimas 24h
+$enriched = array_filter($enriched, fn($e) => $e['ts'] >= time() - 86400);
+
 uasort($enriched, fn($a, $b) => strcmp($a['label'], $b['label']));
 
 // ── Config metadata ────────────────────────────────────────────────────────────

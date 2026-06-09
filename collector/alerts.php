@@ -124,6 +124,16 @@ function sendAlert(array $alerts): bool {
     return $t && $s;
 }
 
+// ── Limpeza do state (entradas > 24h) ────────────────────────────────────────
+// Todos os cooldowns são ≤ 4h, portanto entradas mais antigas são seguras de podar
+
+$_st = loadState();
+$_cut = time() - 86400;
+$_pruned = array_filter($_st, fn($e) => (is_array($e) ? (int)($e['ts'] ?? 0) : (int)$e) >= $_cut);
+if (count($_pruned) < count($_st))
+    file_put_contents(STATE_FILE, json_encode($_pruned ?: new stdClass(), JSON_PRETTY_PRINT));
+unset($_st, $_cut, $_pruned);
+
 // ── Verificações ──────────────────────────────────────────────────────────────
 
 $snap = null;
